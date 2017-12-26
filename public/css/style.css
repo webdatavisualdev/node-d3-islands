@@ -4,6 +4,7 @@ body {
     background-image: -webkit-linear-gradient(left top, #000, #333);
     background-image: -moz-linear-gradient(left top, #000, #333);
     overflow: hidden;
+    margin: 0;
 }
 
 #info {
@@ -38,4 +39,17 @@ body {
     fill: #fff;
     stroke: rgba(255, 255, 255, .5);
     stroke-width: .25px;
+}
+
+.tooltip {
+    position: absolute;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 5px;
+}
+
+.tooltip p {
+    margin: 0px;
+    display: grid;
+    text-align: center;
 }

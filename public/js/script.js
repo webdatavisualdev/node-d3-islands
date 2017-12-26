@@ -1,7 +1,12 @@
 ;(function(w, d3, undefined){
-    "use strict";
+"use strict";
 
-    var width, height;
+    var width, height, islandsData;
+    var xVal = 300, yVal = 300;
+    var pxStep = 1, nxStep = 1, pyStep = 1, nyStep = 1;
+    var xFocus = 0, yFocus = 0;
+    var radius = 100;
+
     function getSize(){
         width = w.innerWidth,
         height = w.innerHeight;
@@ -44,7 +49,7 @@
         var zoom = d3.behavior.zoom(true)
             .translate(projection.origin())
             .scale(projection.scale())
-            .scaleExtent([100, 800])
+            .scaleExtent([100, 20000])
             .on("zoom", move);
 
         var circle = d3.geo.greatCircle();
@@ -88,30 +93,29 @@
 
         var g = svg.append("g"),
             features;
+        var islands = g.append("g")
+            .attr('class', 'islands')
+            .attr('transform', 'translate(' + (width - 800) / 2 + ', ' + (height - 800) / 2 + ') scale(2)');
 
         //Add all of the countries to the globe
-        d3.json("../build/world-islands.json", function(collection) {
-            // features = g.selectAll(".feature").data(collection.features);
+        d3.json("/build/world-countries.json", function(collection) {
+            features = g.selectAll(".feature").data(collection.features);
 
             // features.enter().append("path")
             //     .attr("class", "feature")
             //     .attr("d", function(d){ return path(circle.clip(d)); });
         });
 
-        var imgs = svg.selectAll("image").data([0]);
-        imgs.enter()
-        .append("svg:image")
-        .attr("xlink:href", "../img/1.svg")
-        .attr("x", width / 2)
-        .attr("y", height / 2)
-        .attr("width", "50")
-        .attr("height", "50");
-        
+        d3.json("/build/world-islands.json", function(islands) {
+            islandsData = islands;
+            drawIslands();
+        });
+
         //Redraw all items with new projections
         function redraw(){
-            // features.attr("d", function(d){
-            //     return path(circle.clip(d));
-            // });
+            features.attr("d", function(d){
+                return path(circle.clip(d));
+            });
 
             stars.attr("d", function(d){
                 spacePath.pointRadius(d.properties.radius);
@@ -119,19 +123,135 @@
             });
         }
 
+        function drawIslands() {
+            d3.selectAll(".islands svg").remove();
+            islandsData.map(d => {
+                if (d.id < 4000) {
+                    d3.xml("../img/" + (1 + d.id)+ ".svg", "image/svg+xml", function(xml) {
+                        var importedNode = document.importNode(xml.documentElement, true);
+                        d3.select(importedNode).attr('width', d.size)
+                            .attr('height', d.size)
+                            .attr('x', d.position.x)
+                            .attr('y', d.position.y)
+                            .attr('id', d.id)
+                            .attr('opacity', function() {
+                                if (Math.abs(200 - d.position.x) * Math.abs(200 - d.position.x) + Math.abs(200 - d.position.y) * Math.abs(200 - d.position.y) > 100 * 100)
+                                    return 0;
+                                return 1;
+                            })
+                            .attr('class', 'island')
+                            .on('click', function() {
+                                d3.selectAll('body .tooltip').remove();
+                                d3.selectAll('body').append('div')
+                                    .attr('class', 'tooltip')
+                                    .style('left', $('#' + d.id).position().left + 'px')
+                                    .style('top', $('#' + d.id).position().top + 'px')
+                                    .append('p')
+                                    .text(d.text)
+                                    .append('a')
+                                    .attr('target', '_blank')
+                                    .text(d.url)
+                                    .attr('href', d.url);
+                            });
+        
+                        d3.select(importedNode).select('g').attr('fill', d.color);
+                        
+                        d3.select(".islands")
+                            .each(function() {
+                                this.appendChild(importedNode);
+                            })
+                    });
+                }
+            });
+        }
+
+        function redrawIslands(type) {
+            let flag1 = false, flag2 = false, flag3 = false, flag4 = false;
+            d3.selectAll('.islands svg')[0].map(d => {
+                d3.select(d)
+                    .attr('x', function() {
+                        if (d3.select(this).attr('x') > xVal && type === 0) {
+                            flag1 = true;
+                            return d3.select(this).attr('x') - 400;
+                        } else if (d3.select(this).attr('x') < xVal - 200 && type === 1) {
+                            flag2 = true;
+                            return parseInt(d3.select(this).attr('x')) + 400;
+                        }
+                        return d3.select(this).attr('x');
+                    })
+                    .attr('y', function() {
+                        if (d3.select(this).attr('y') > yVal && type === 2) {
+                            flag3 = true;
+                            return d3.select(this).attr('y') - 400;
+                        } else if (d3.select(this).attr('y') < yVal - 200 && type === 3) {
+                            flag4 = true;
+                            return parseInt(d3.select(this).attr('y')) + 400;
+                        }
+                        return d3.select(this).attr('y');
+                    });
+            });
+
+            if (flag1) {
+                xVal -= 100;
+            }
+
+            if (flag2) {
+                xVal += 100;
+            }
+
+            if (flag3) {
+                yVal -= 100;
+            }
+
+            if (flag4) {
+                yVal += 100;
+            }
+        }
+
 
         function move() {
             if(d3.event){
+                d3.selectAll('.tooltip').remove();
+
                 var scale = d3.event.scale;
+
                 var origin = [d3.event.translate[0] * -1, d3.event.translate[1]];
+                var x = d3.event.translate[0] + (width - 4 * scale) / 2;
+                var y = d3.event.translate[1] + (height - 4 * scale) / 2;
+                islands.attr("transform", "translate(" + x + ", " + y + ")scale(" + scale / 100 + ")");
+
+                d3.selectAll('.islands svg')[0].map(d => {
+                    d3.select(d)
+                        .attr('opacity', function() {
+                            if (Math.abs(200 - d3.select(this).attr('x') - d3.event.translate[0] * 100 / scale) * Math.abs(200 - d3.select(this).attr('x') - d3.event.translate[0] * 100 / scale) + Math.abs(200 - d3.select(this).attr('y') - d3.event.translate[1] * 100 / scale) * Math.abs(200 - d3.select(this).attr('y') - d3.event.translate[1] * 100 / scale) > 100 * 100)
+                                return 0;
+                            return 1;
+                        });
+                });
+
+                if (d3.event.translate[0] > d3.event.scale * pxStep && d3.event.translate[0] - xFocus > 0) {
+                    xFocus = d3.event.translate[0];
+                    pxStep += 1;
+                    nxStep -=1;
+                    redrawIslands(0);
+                } else if (d3.event.translate[0] < (-1) * d3.event.scale * nxStep && d3.event.translate[0] - xFocus < 0) {
+                    xFocus = d3.event.translate[0];
+                    nxStep += 1;
+                    pxStep -= 1;
+                    redrawIslands(1);
+                } else if (d3.event.translate[1] > d3.event.scale * pyStep && d3.event.translate[1] - yFocus > 0) {
+                    yFocus = d3.event.translate[1];
+                    pyStep += 1;
+                    nyStep -=1;
+                    redrawIslands(2);
+                } else if (d3.event.translate[1] < (-1) * d3.event.scale * nyStep && d3.event.translate[1] - yFocus < 0) {
+                    yFocus = d3.event.translate[1];
+                    nyStep += 1;
+                    pyStep -= 1;
+                    redrawIslands(3);
+                }
                 
-                imgs.attr('width', scale * 50 / projection.scale())
-                    .attr('height', scale * 50 / projection.scale())
-                    .attr('transform', 'translate(' + origin[0] * -1 + ', ' + origin[1] + ')')
-                    .style('opacity', d => {
-                        return isInGlove(imgs.attr('x') - origin[0], parseInt(imgs.attr('y')) + origin[1], scale, imgs.attr('width'), imgs.attr('height'));
-                    });
-                // projection.scale(scale);
+                projection.scale(scale);
                 space.scale(scale * 3);
                 backgroundCircle.attr('r', scale);
                 path.pointRadius(2 * scale / scale0);
@@ -166,21 +286,6 @@
 
         function randomLonLat(){
             return [Math.random() * 360 - 180, Math.random() * 180 - 90];
-        }
-
-        function isInGlove(x, y, r, w, h) {
-            var rx = width / 2 - x - w / 2;
-            var ry = height / 2 - y - h / 2;
-
-            // if (x < 0) {
-            //     rx = width / 2 + x - w / 2;
-            // }
-
-            // if (Math.abs(rx) > 3 * r) {
-            //     rx = - (rx % (2 * r));
-            // }
-            console.log(rx, ry, r)
-            return (rx * rx + ry * ry < r * r) ? 1 : 0;
         }
     }
 
