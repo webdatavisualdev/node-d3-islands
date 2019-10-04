@@ -5,7 +5,6 @@
     var xVal = 300, yVal = 300;
     var pxStep = 1, nxStep = 1, pyStep = 1, nyStep = 1;
     var xFocus = 0, yFocus = 0;
-    var radius = 100;
 
     function getSize(){
         width = w.innerWidth,
@@ -28,7 +27,7 @@
             .mode("equidistant")
             .translate([width / 2, height / 2]);
 
-        space.scale(space.scale() * 3);
+        space.scale(space.scale() * 5);
 
         var spacePath = d3.geo.path()
             .projection(space)
@@ -43,7 +42,7 @@
 
         var path = d3.geo.path()
             .projection(projection)
-            .pointRadius(2);
+            .pointRadius(5);
 
         //Setup zoom behavior
         var zoom = d3.behavior.zoom(true)
